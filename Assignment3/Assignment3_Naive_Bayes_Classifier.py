@@ -164,30 +164,32 @@ class MultinomialNaiveBayes:
             total_word_count = word_counts.sum()                # total number of words in class c
             
             # Laplace smoothened word probability p(word | c)
-            self.word_probabilities[i, :] = (word_counts + self.alpha) / (total_word_count + self.alpha * n_features)
+            self.word_probabilities[i, :] = (word_counts + self.alpha) / (total_word_count + self.alpha * n_features)      
     
-    def compute_likelihood(self, x):
+    def compute_log_likelihood(self, x):
         """
-        Compute the Likelihood  p(x | c) for each class c
-        where p(x | c) = PROD p(word | c) ** count(word) in x; for all word in sample x
+        Compute the log-likelihood log P(x | c) for each class c
+        where log P(x | c) = SUM count(word) * log P(word | c) in x; for all word in sample x
+        
+        Log-likelihood is used to prevent numerical underflow caused by the product of multiple small probabilities
         """
         n_samples = x.shape[0]
         n_classes = len(self.classes)
-        likelihoods = np.zeros((n_samples, n_classes))
-        
+        log_likelihoods = np.zeros((n_samples, n_classes))
+
         for i in range(n_classes):
             for j in range(n_samples):
                 word_counts = x[j, :].toarray().ravel()         # count of words in j'th samples
-                likelihoods[j, i] = np.prod(self.word_probabilities[i, :] ** word_counts)
-        return likelihoods         
+                log_likelihoods[j, i] = np.sum(word_counts * np.log(self.word_probabilities[i, :]))
+        return log_likelihoods
     
     def predict(self, x):
         """
         Make predictions on x
         """
-        likelihoods = self.compute_likelihood(x)                    # compute likelihood
-        posteriors = likelihoods * self.class_priors                # compute posterior
-        predictions = self.classes[np.argmax(posteriors, axis=1)]   # pick the class with max. posterior
+        log_likelihoods = self.compute_log_likelihood(x)                # compute log-likelihood
+        log_posteriors = log_likelihoods + np.log(self.class_priors)    # compute log-posterior
+        predictions = self.classes[np.argmax(log_posteriors, axis=1)]   # pick the class with max. log-posterior
         return predictions
 
 # %%
